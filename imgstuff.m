@@ -84,10 +84,10 @@ title('Red box shows object region');
 
 points = matchedScenePoints;
 % Display the detected points.
-pointImage = insertMarker(objectFrame,points.Location,'+','Color','white');
-figure;
-imshow(pointImage);
-title('Detected interest points');
+%pointImage = insertMarker(objectFrame,points.Location,'+','Color','white');
+%figure;
+%imshow(pointImage);
+%title('Detected interest points');
 
 % Create a tracker object.
 tracker = vision.PointTracker('MaxBidirectionalError',1);
@@ -100,9 +100,9 @@ for i=1:1000
       frame = ycbcr2rgb(vidobj());
       frame = frame;
       [points,validity] = tracker(frame);
-      if numel(points(validity, :)) < 10
-            release(tracker);
+      while numel(points(validity, :)) < 3
             % Reidentify matching points
+            fprintf('not enough valid points...\n');
             scenePoints = detectSURFFeatures(rgb2gray(frame));
             [sceneFeatures, scenePoints] = extractFeatures(rgb2gray(frame), scenePoints);
             featurePairs = matchFeatures(deckFeatures, sceneFeatures);
@@ -110,13 +110,23 @@ for i=1:1000
             matchedBoxPoints = deckPoints(featurePairs(:, 1), :);
             matchedScenePoints = scenePoints(featurePairs(:, 2), :);
             % Calculate transform
-            [tform, inlierBoxPoints, inlierScenePoints] = ...
-                estimateGeometricTransform(matchedBoxPoints, matchedScenePoints, 'affine');
+            try
+                [tform, inlierBoxPoints, inlierScenePoints] = ...
+                    estimateGeometricTransform(matchedBoxPoints, matchedScenePoints, 'affine');
+            catch ME
+                fprintf('Not enough matches, grabbing new frame and continuing.\n');
+                frame = ycbcr2rgb(vidobj());
+                frame = frame;
+                continue;
+            end
+            release(tracker);
             tmp = newBoxPolygon';
             lines = tmp(:)';
             points = matchedScenePoints;
             initialize(tracker,points.Location,frame);
             [points,validity] = tracker(frame);
+            fprintf('end of identify loop, have %d val points\n', numel(points(validity, :)));
+            
             %if numel(points(validity, :)) < 3
             %    continue;
             %end
@@ -130,3 +140,26 @@ end
 %%
 release(videoPlayer);
 release(videoFileReader);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
